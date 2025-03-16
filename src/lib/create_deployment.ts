@@ -73,7 +73,10 @@ const dseq = 0;
 
 export async function loadPrerequisites(mnemonic:string) {
   const wallet = await walletFromMnemonic(mnemonic);
+  const accounts = await wallet.getAccounts();
+  const wallet_address :string = accounts[0].address;
   console.log(wallet)
+  console.log(wallet_address)
   const registry = getAkashTypeRegistry();
   console.log(registry)
 
@@ -82,13 +85,13 @@ export async function loadPrerequisites(mnemonic:string) {
   });
   console.log(client)
 
-  const certificate = await loadOrCreateCertificate(wallet, client);
+  const certificate = await loadOrCreateCertificate(wallet_address, client);
   console.log(certificate)
   const sdl = SDL.fromString(rawSDL, "beta3");
   console.log(sdl)
 
   return {
-    wallet,
+    wallet_address,
     client,
     certificate,
     sdl
@@ -111,8 +114,7 @@ export async function loadPrerequisites(mnemonic:string) {
 //   }
 // }
 
-async function loadOrCreateCertificate(wallet: DirectSecp256k1HdWallet, client: SigningStargateClient) {
-  const accounts = await wallet.getAccounts();
+async function loadOrCreateCertificate(wallet_address: string, client: SigningStargateClient) {
   // check to see if we can load the certificate from the fixtures folder
 
   // if (localStorage.getItem("certificate") !== "") {
@@ -120,8 +122,8 @@ async function loadOrCreateCertificate(wallet: DirectSecp256k1HdWallet, client: 
   // }
 
   // if not, create a new one
-  const certificate = certificateManager.generatePEM(accounts[0].address);
-  const result = await cert.broadcastCertificate(certificate, accounts[0].address, client);
+  const certificate = certificateManager.generatePEM(wallet_address);
+  const result = await cert.broadcastCertificate(certificate, wallet_address, client);
 
   if (result.code !== undefined && result.code === 0) {
     // save the certificate to the fixtures folder
@@ -141,16 +143,15 @@ async function walletFromMnemonic(mnemonic: string) {
   }
 }
 
-export async function createDeployment(sdl: SDL, wallet: DirectSecp256k1HdWallet, client: SigningStargateClient) {
+export async function createDeployment(sdl: SDL, wallet_address: string, client: SigningStargateClient) {
   const blockheight = await client.getHeight();
   const groups = sdl.groups();
-  const accounts = await wallet.getAccounts();
 
   if (dseq != 0) {
     console.log("Skipping deployment creation...");
     return {
       id: {
-        owner: accounts[0].address,
+        owner: wallet_address,
         dseq: dseq
       },
       groups: groups,
@@ -159,13 +160,13 @@ export async function createDeployment(sdl: SDL, wallet: DirectSecp256k1HdWallet
         amount: "5000000"
       },
       version: await sdl.manifestVersion(),
-      depositor: accounts[0].address
+      depositor: wallet_address
     };
   }
 
   const deployment = {
     id: {
-      owner: accounts[0].address,
+      owner: wallet_address,
       dseq: blockheight
     },
     groups: groups,
@@ -174,7 +175,7 @@ export async function createDeployment(sdl: SDL, wallet: DirectSecp256k1HdWallet
       amount: "5000000"
     },
     version: await sdl.manifestVersion(),
-    depositor: accounts[0].address
+    depositor: wallet_address
   };
 
   const fee = {
@@ -192,7 +193,7 @@ export async function createDeployment(sdl: SDL, wallet: DirectSecp256k1HdWallet
     value: MsgCreateDeployment.fromPartial(deployment)
   };
 
-  const tx = await client.signAndBroadcast(accounts[0].address, [msg], fee, "create deployment");
+  const tx = await client.signAndBroadcast(wallet_address, [msg], fee, "create deployment");
 
   if (tx.code !== undefined && tx.code === 0) {
     return deployment;
@@ -230,12 +231,11 @@ export async function fetchBid(dseq: number, owner: string) {
   throw new Error(`Could not fetch bid for deployment ${dseq}.Timeout reached.`);
 }
 
-export async function createLease(deployment: Deployment, wallet: DirectSecp256k1HdWallet, client: SigningStargateClient): Promise<Lease> {
+export async function createLease(deployment: Deployment, wallet_address: string, client: SigningStargateClient): Promise<Lease> {
   const {
     id: { dseq, owner }
   } = deployment;
   const bid = await fetchBid(dseq, owner);
-  const accounts = await wallet.getAccounts();
 
   if (bid.bidId === undefined) {
     throw new Error("Bid ID is undefined");
@@ -260,7 +260,7 @@ export async function createLease(deployment: Deployment, wallet: DirectSecp256k
     value: MsgCreateLease.fromPartial(lease)
   };
 
-  const tx = await client.signAndBroadcast(accounts[0].address, [msg], fee, "create lease");
+  const tx = await client.signAndBroadcast(wallet_address, [msg], fee, "create lease");
 
   if (tx.code !== undefined && tx.code === 0) {
     return {
@@ -404,12 +404,13 @@ export async function sendManifest(
     });
     console.log(status);
 
-    if (status && (status.forwarded_ports.proxy[0] !== null || status.forwarded_ports.proxy[0] !== undefined)) {
-      console.log(`available at: ${status.forwarded_ports.proxy[0].host}:${status.forwarded_ports.proxy[0].externalPort}`);
+    const proxy = status.forwarded_ports.proxy[0];
+    if (status && (proxy !== null || proxy !== undefined)) {
+      console.log(`available at: ${proxy.host}:${proxy.externalPort}`);
       return {
-        "host":status.forwarded_ports.proxy[0].host,
-        "external_port":status.forwarded_ports.proxy[0].externalPort,
-        "link":`${status.forwarded_ports.proxy[0].host}:${status.forwarded_ports.proxy[0].externalPort}`
+        "host":proxy.host,
+        "external_port":proxy.externalPort,
+        "link":`${proxy.host}:${proxy.externalPort}`
       };
     }
 
@@ -421,13 +422,13 @@ export async function sendManifest(
 }
 
 export async function deploy(mnemonic : string) {
-  const { wallet, client, certificate, sdl } = await loadPrerequisites(mnemonic);
+  const { wallet_address, client, certificate, sdl } = await loadPrerequisites(mnemonic);
 
   console.log("Creating deployment...");
-  const deployment = await createDeployment(sdl, wallet, client);
+  const deployment = await createDeployment(sdl, wallet_address, client);
 
   console.log("Creating lease...");
-  const lease = await createLease(deployment, wallet, client);
+  const lease = await createLease(deployment, wallet_address, client);
 
   console.log("Sending manifest...");
   return await sendManifest(sdl, lease, certificate);
