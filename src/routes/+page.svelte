@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { get_deployment_data } from '$lib/get_deployments.js'
+  import { get_deployment_data } from '$lib/get_deployments.js';
+  import { getSigningStargateClient } from '$lib/signer';
+
   const links : string[] = $state([]);
   const deployments : any[] = $state([]);
   var mnemonic = $state("");
@@ -26,6 +28,17 @@
     const new_deployments = await get_deployment_data("akash1ljev9q5zx8p4knvcdst4aq7cht0dxx3av0479k");
     console.log(new_deployments)
   }
+
+  const get_signer = async () => {
+    const chainId = "akashnet-2";
+    try {
+      const { client, account } = await getSigningStargateClient(chainId);
+      console.log("SigningStargateClient created successfully");
+      console.log("Account address:", account.address);
+    } catch (error) {
+      console.error("Error creating SigningStargateClient:", error);
+    }
+  };
 </script>
 
 <h1>Welcome to SvelteKit</h1>
@@ -36,6 +49,7 @@
 <p>Note: You can't see your deployment anywhere here -nor do you get any confirmation, cry about it- all you get is a console log<br>refer to akash console to manage the deployment</p>
 
 <button onclick={get_deployments}> Get Deployments</button>
+<button onclick={get_signer}> Get Signer </button>
 
 {#each links as link}
   <p>{link}</p>
