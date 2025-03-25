@@ -1,65 +1,72 @@
-<script lang="ts">
-  import { get_deployment_data } from '$lib/get_deployments.js';
-  import { getSigningStargateClient } from '$lib/signer';
+<script>
+  import Header from './components/Header.svelte';
+  import Sidebar from './components/Sidebar.svelte';
+  import Dashboard from './components/Dashboard.svelte';
+  import Projects from './components/Projects.svelte';
+  import Datasets from './components/Datasets.svelte';
+  import Events from './components/Events.svelte';
 
-  const links : string[] = $state([]);
-  const deployments : any[] = $state([]);
-  var mnemonic = $state("");
+  let activePage = "Dashboard"; // Default to Dashboard
 
-  const deploy = async (mnemonic: string) => {
-    console.log(mnemonic)
-    const response = await fetch("/api/create_deployment", {
-        method: "GET",
-        headers: {
-            "MNEMONIC": mnemonic
-        }
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      console.log("Deployment results: ",result);
-      links.push(result.link);
-    } else {
-      console.error('Failed to create deployment');
-    }
-  }
-
-  const get_deployments = async () => {
-    const new_deployments = await get_deployment_data("akash1ljev9q5zx8p4knvcdst4aq7cht0dxx3av0479k");
-    console.log(new_deployments)
-  }
-
-  const get_signer = async () => {
-    const chainId = "akashnet-2";
-    try {
-      const { client, account } = await getSigningStargateClient(chainId);
-      console.log("SigningStargateClient created successfully");
-      console.log("Account address:", account.address);
-    } catch (error) {
-      console.error("Error creating SigningStargateClient:", error);
-    }
+  const pageComponents = {
+    "Dashboard": Dashboard,
+    "Projects": Projects,
+    "Datasets": Datasets,
+    "Events": Events,
   };
+
+  function handlePageChange(event) {
+    const newPage = event.detail.page;
+    if (pageComponents[newPage]) {
+      activePage = newPage;
+    }
+  }
 </script>
 
-<h1>Welcome to SvelteKit</h1>
-<p>Input your mnemonic</p>
-<input bind:value={mnemonic}/>
-
-<button onclick={() => deploy(mnemonic)}>Deploy</button>
-<p>Note: You can't see your deployment anywhere here -nor do you get any confirmation, cry about it- all you get is a console log<br>refer to akash console to manage the deployment</p>
-
-<button onclick={get_deployments}> Get Deployments</button>
-<button onclick={get_signer}> Get Signer </button>
-
-{#each links as link}
-  <p>{link}</p>
-{/each}
+<main class="container">
+  <Header />
+  <div class="content">
+    <Sidebar on:pageChange={handlePageChange} />
+    <section class="main-content">
+      {#if pageComponents[activePage]}
+        <svelte:component this={pageComponents[activePage]} />
+      {:else}
+        <p>Page not found or under construction.</p>
+      {/if}
+    </section>
+  </div>
+</main>
 
 <style>
-  p {
-    color: white;
+  /* Reset default margins and set background */
+  body {
+    margin: 0;
+    padding: 0;
+    background: #0d0d0d;
   }
-  h1 {
-    color: hsl(356.8, 100%, 62.9%);
+
+  .container {
+    display: flex;
+    flex-direction: column;
+    background: #0d0d0d;
+    color: white;
+    min-height: 100vh; /* Allow container to grow beyond viewport */
+    width: 100vw;
+  }
+  .content {
+    display: flex;
+    flex: 1;
+    width: 100%;
+    padding-top: 60px; /* Use padding instead of margin to avoid height issues */
+  }
+  .main-content {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    margin-top: 40px;
+    margin-left: 230px; /* Match sidebar width */
+    width: calc(100% - 190px); /* Consistent with margin-left */
+    min-height: calc(100vh - 60px); /* Ensure full height minus header */
+    box-sizing: border-box; /* Include padding in height/width calculations */
   }
 </style>

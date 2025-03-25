@@ -1,15 +1,11 @@
 import https from "https";
-import { SigningStargateClient } from "@cosmjs/stargate";
 import { MsgCreateDeployment } from "@akashnetwork/akash-api/akash/deployment/v1beta3";
 import { QueryClientImpl as QueryProviderClient, QueryProviderRequest } from "@akashnetwork/akash-api/akash/provider/v1beta3";
 import { QueryBidsRequest, QueryClientImpl as QueryMarketClient, MsgCreateLease, BidID } from "@akashnetwork/akash-api/akash/market/v1beta4";
-import * as cert from "@akashnetwork/akashjs/build/certificates";
 import { getRpc } from "@akashnetwork/akashjs/build/rpc";
 import { SDL } from "@akashnetwork/akashjs/build/sdl";
-import { getAkashTypeRegistry } from "@akashnetwork/akashjs/build/stargate";
 import { type CertificatePem } from "@akashnetwork/akashjs/build/certificates/certificate-manager/CertificateManager";
-import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
-import { DirectSecp256k1HdWallet, Registry } from "@cosmjs/proto-signing";
+
 
 // In case you want to test on a sandbox environment, uncomment the following line and comment the following line
 // const rpcEndpoint = "https://rpc.sandbox-01.aksh.pw";
@@ -71,87 +67,20 @@ type Lease = {
 // you can set this to a specific deployment sequence number to skip the deployment creation
 const dseq = 0;
 
-export async function loadPrerequisites(mnemonic:string) {
-  const wallet = await walletFromMnemonic(mnemonic);
-  const accounts = await wallet.getAccounts();
-  const wallet_address :string = accounts[0].address;
-  console.log(wallet)
-  console.log(wallet_address)
-  const registry = getAkashTypeRegistry();
-  console.log(registry)
-
-  const client = await SigningStargateClient.connectWithSigner(rpcEndpoint, wallet, {
-    registry: new Registry(registry)
-  });
-  console.log(client)
-
-  const certificate = await loadOrCreateCertificate(wallet_address, client);
-  console.log(certificate)
+export async function loadSDL() {
   const sdl = SDL.fromString(rawSDL, "beta3");
-  console.log(sdl)
 
-  return {
-    wallet_address,
-    client,
-    certificate,
-    sdl
-  };
+  return sdl;
 }
 
-// saves the certificate into the fixtures folder
-// function saveCertificate(certificate: CertificatePem) {
-//   const json = JSON.stringify(certificate);
-//   localStorage.setItem("certificate", json)
-// }
-
-// function loadCertificate(): CertificatePem {
-//   const json = localStorage.getItem("certificate")
-
-//   try {
-//     return JSON.parse(json);
-//   } catch (e) {
-//     throw new Error(`Could not parse certificate: ${e} `);
-//   }
-// }
-
-async function loadOrCreateCertificate(wallet_address: string, client: SigningStargateClient) {
-  // check to see if we can load the certificate from the fixtures folder
-
-  // if (localStorage.getItem("certificate") !== "") {
-  //   return loadCertificate();
-  // }
-
-  // if not, create a new one
-  const certificate = certificateManager.generatePEM(wallet_address);
-  const result = await cert.broadcastCertificate(certificate, wallet_address, client);
-
-  if (result.code !== undefined && result.code === 0) {
-    // save the certificate to the fixtures folder
-    // saveCertificate(certificate);
-    return certificate;
-  }
-
-  throw new Error(`Could not create certificate: ${result.rawLog} `);
-}
-
-async function walletFromMnemonic(mnemonic: string) {
-  try {
-    return await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, { prefix: "akash" });
-  } catch (error) {
-    console.error('Could not create wallet from mnemonic, have you updated "examples/fixtures/mnemonic.txt?"');
-    throw error;
-  }
-}
-
-export async function createDeployment(sdl: SDL, wallet_address: string, client: SigningStargateClient) {
-  const blockheight = await client.getHeight();
+export async function getDeploymentCreationDetails(sdl: SDL, walletAddress: string, blockHeight: number) {
   const groups = sdl.groups();
 
   if (dseq != 0) {
     console.log("Skipping deployment creation...");
     return {
       id: {
-        owner: wallet_address,
+        owner: walletAddress,
         dseq: dseq
       },
       groups: groups,
@@ -160,14 +89,14 @@ export async function createDeployment(sdl: SDL, wallet_address: string, client:
         amount: "5000000"
       },
       version: await sdl.manifestVersion(),
-      depositor: wallet_address
+      depositor: walletAddress
     };
   }
 
   const deployment = {
     id: {
-      owner: wallet_address,
-      dseq: blockheight
+      owner: walletAddress,
+      dseq: blockHeight
     },
     groups: groups,
     deposit: {
@@ -175,7 +104,7 @@ export async function createDeployment(sdl: SDL, wallet_address: string, client:
       amount: "5000000"
     },
     version: await sdl.manifestVersion(),
-    depositor: wallet_address
+    depositor: walletAddress
   };
 
   const fee = {
@@ -193,13 +122,7 @@ export async function createDeployment(sdl: SDL, wallet_address: string, client:
     value: MsgCreateDeployment.fromPartial(deployment)
   };
 
-  const tx = await client.signAndBroadcast(wallet_address, [msg], fee, "create deployment");
-
-  if (tx.code !== undefined && tx.code === 0) {
-    return deployment;
-  }
-
-  throw new Error(`Could not create deployment: ${tx.rawLog} `);
+  return { deployment, msg, fee }
 }
 
 export async function fetchBid(dseq: number, owner: string) {
@@ -231,7 +154,7 @@ export async function fetchBid(dseq: number, owner: string) {
   throw new Error(`Could not fetch bid for deployment ${dseq}.Timeout reached.`);
 }
 
-export async function createLease(deployment: Deployment, wallet_address: string, client: SigningStargateClient): Promise<Lease> {
+export async function getLeaseCreationDetails(deployment: Deployment){
   const {
     id: { dseq, owner }
   } = deployment;
@@ -241,7 +164,7 @@ export async function createLease(deployment: Deployment, wallet_address: string
     throw new Error("Bid ID is undefined");
   }
 
-  const lease = {
+  const leaseId = {
     bidId: bid.bidId
   };
 
@@ -257,24 +180,20 @@ export async function createLease(deployment: Deployment, wallet_address: string
 
   const msg = {
     typeUrl: `/${MsgCreateLease.$type}`,
-    value: MsgCreateLease.fromPartial(lease)
+    value: MsgCreateLease.fromPartial(leaseId)
   };
 
-  const tx = await client.signAndBroadcast(wallet_address, [msg], fee, "create lease");
+  const lease = {
+    id: BidID.toJSON(bid.bidId) as {
+      owner: string;
+      dseq: number;
+      provider: string;
+      gseq: number;
+      oseq: number;
+    }
+  };
 
-  if (tx.code !== undefined && tx.code === 0) {
-    return {
-      id: BidID.toJSON(bid.bidId) as {
-        owner: string;
-        dseq: number;
-        provider: string;
-        gseq: number;
-        oseq: number;
-      }
-    };
-  }
-
-  throw new Error(`Could not create lease: ${tx.rawLog} `);
+  return { msg, fee, lease }
 }
 
 async function queryLeaseStatus(lease: Lease, providerUri: string, certificate: CertificatePem) {
@@ -419,17 +338,4 @@ export async function sendManifest(
   }
 
   throw new Error(`Could not start deployment. Timeout reached.`);
-}
-
-export async function deploy(mnemonic : string) {
-  const { wallet_address, client, certificate, sdl } = await loadPrerequisites(mnemonic);
-
-  console.log("Creating deployment...");
-  const deployment = await createDeployment(sdl, wallet_address, client);
-
-  console.log("Creating lease...");
-  const lease = await createLease(deployment, wallet_address, client);
-
-  console.log("Sending manifest...");
-  return await sendManifest(sdl, lease, certificate);
 }

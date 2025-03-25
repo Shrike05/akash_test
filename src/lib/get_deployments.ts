@@ -1,7 +1,7 @@
 import { QueryDeploymentsResponse, QueryDeploymentsRequest, QueryClientImpl } from "@akashnetwork/akash-api/akash/deployment/v1beta3";
 import { getRpc } from "@akashnetwork/akashjs/build/rpc";
 
-export async function get_deployment_data(wallet_address: string) {
+export async function getDeploymentData(wallet_address: string) {
   const request = QueryDeploymentsRequest.fromJSON({
     filters: {
       owner: wallet_address,
