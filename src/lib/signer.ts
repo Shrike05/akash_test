@@ -1,8 +1,9 @@
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
-import type { EncodeObject } from "@cosmjs/proto-signing";
-import { MsgCreateCertificate } from "@akashnetwork/akash-api/v1beta3";
+import { Registry, type EncodeObject } from "@cosmjs/proto-signing";
+import { getAkashTypeRegistry } from "@akashnetwork/akashjs/build/stargate";
 import { SigningStargateClient, type StdFee } from "@cosmjs/stargate";
 import { type Window as KeplrWindow } from "@keplr-wallet/types";
+import { broadcastCertificate } from "@akashnetwork/akashjs/build/certificates";
 
 const rpcEndpoint = "https://rpc.akashnet.net:443";
 
@@ -27,10 +28,14 @@ export async function getSigningStargateClient() {
   // Get the first account from the offline signer
   const accounts = await offlineSigner.getAccounts();
 
+  const akashRegistry = getAkashTypeRegistry();
+  console.log("Registry", akashRegistry)
+
   // Create the SigningStargateClient
   const client = await SigningStargateClient.connectWithSigner(
     rpcEndpoint,
-    offlineSigner
+    offlineSigner,
+    { registry: new Registry(akashRegistry)}
   );
 
   return { client, account: accounts[0] };
@@ -45,73 +50,6 @@ export async function signTransaction(client:SigningStargateClient,
   const tx = await client.signAndBroadcast(wallet_address, messages, fee, memo);
 
   return tx.code
-}
-
-/**
- * Converts a base64 string to a Uint8Array.
- * @param {string} base64 - The base64 encoded string.
- * @returns {Uint8Array} A Uint8Array representation of the base64 string.
- */
-function base64ToUInt(base64) {
-  if (typeof window !== "undefined") {
-      const binary_string = window.atob(base64);
-      const len = binary_string.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i++) {
-          bytes[i] = binary_string.charCodeAt(i);
-      }
-      return bytes;
-  }
-  return Buffer.from(base64, "base64");
-}
-
-/**
- * Converts a Uint8Array or string to a base64 encoded string.
- * @param {Uint8Array | string} input - The input to encode as base64. In a browser, this can be a Uint8Array or a string; in Node.js, it can be a Buffer or string.
- * @returns {string} A base64 encoded string representation of the input.
- */
-function toBase64(input) {
-  if (typeof window !== "undefined") {
-    // Browser environment
-    let binary = '';
-    const bytes = input instanceof Uint8Array ? input : new TextEncoder().encode(input);
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return window.btoa(binary);
-  }
-  // Node.js environment
-  if (input instanceof Buffer) {
-    return input.toString("base64");
-  }
-  return Buffer.from(input).toString("base64");
-}
-
-async function broadcastCertificate(pem, owner, client) {
-  if ("csr" in pem && !("cert" in pem)) {
-    console.trace("The `csr` field is deprecated. Use `cert` instead.");
-  }
-  const certKey = "cert" in pem ? pem.cert : pem.csr;
-  const encodedCsr = base64ToUInt(toBase64(certKey));
-  const encodedPublicKey = base64ToUInt(toBase64(pem.publicKey));
-
-  // Create the message directly with MsgCreateCertificate
-  const message = {
-    typeUrl: `/${MsgCreateCertificate.$type}`,
-    value: {
-      owner: owner,
-      cert: encodedCsr,
-      pubkey: encodedPublicKey,
-    },
-  };
-
-  // Use a default fee (adjust as needed)
-  const fee = {
-    amount: [{ denom: "uakt", amount: "5000" }], // 0.005 AKT
-    gas: "200000", // Gas limit
-  };
-
-  return await client.signAndBroadcast(owner, [message], fee);
 }
 
 async function loadOrCreateCertificate(wallet_address: string, client: SigningStargateClient) {
@@ -131,11 +69,10 @@ export async function deploy() {
   const certificate = await loadOrCreateCertificate(account.address, client);
   console.log(certificate)
 
-
   const blockHeight : number = await client.getHeight();
   console.log("block Height ", blockHeight)
 
-  const depoloymentResponse = await fetch("/api/GetDeploymentCreationDetails", {
+  const depoloymentResponse = await fetch("/api/getDeploymentCreationDetails", {
       method: "GET",
       headers: {
         "BLOCKHEIGHT":blockHeight.toString(),
