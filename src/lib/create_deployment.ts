@@ -64,67 +64,6 @@ type Lease = {
   };
 };
 
-// you can set this to a specific deployment sequence number to skip the deployment creation
-const dseq = 0;
-
-export async function loadSDL() {
-  const sdl = SDL.fromString(rawSDL, "beta3");
-
-  return sdl;
-}
-
-export async function getDeploymentCreationDetails(sdl: SDL, walletAddress: string, blockHeight: number) {
-  const groups = sdl.groups();
-
-  if (dseq != 0) {
-    console.log("Skipping deployment creation...");
-    return {
-      id: {
-        owner: walletAddress,
-        dseq: dseq
-      },
-      groups: groups,
-      deposit: {
-        denom: "uakt",
-        amount: "5000000"
-      },
-      version: await sdl.manifestVersion(),
-      depositor: walletAddress
-    };
-  }
-
-  const deployment = {
-    id: {
-      owner: walletAddress,
-      dseq: blockHeight
-    },
-    groups: groups,
-    deposit: {
-      denom: "uakt",
-      amount: "5000000"
-    },
-    version: await sdl.manifestVersion(),
-    depositor: walletAddress
-  };
-
-  const fee = {
-    amount: [
-      {
-        denom: "uakt",
-        amount: "20000"
-      }
-    ],
-    gas: "800000"
-  };
-
-  const msg = {
-    typeUrl: "/akash.deployment.v1beta3.MsgCreateDeployment",
-    value: MsgCreateDeployment.fromPartial(deployment)
-  };
-
-  return { deployment, msg, fee }
-}
-
 export async function fetchBid(dseq: number, owner: string) {
   const rpc = await getRpc(rpcEndpoint);
   const client = new QueryMarketClient(rpc);

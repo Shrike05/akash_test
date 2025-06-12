@@ -1,11 +1,45 @@
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { Registry, type EncodeObject } from "@cosmjs/proto-signing";
-import { getAkashTypeRegistry } from "@akashnetwork/akashjs/build/stargate";
-import { SigningStargateClient, type StdFee } from "@cosmjs/stargate";
+import { Message } from "@akashnetwork/akashjs/build/stargate";
+import { SigningStargateClient, type SequenceResponse, type StdFee } from "@cosmjs/stargate";
 import { type Window as KeplrWindow } from "@keplr-wallet/types";
 import { broadcastCertificate } from "@akashnetwork/akashjs/build/certificates";
+import { MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
+import { SDL } from "@akashnetwork/akashjs/build/sdl";
 
 const rpcEndpoint = "https://rpc.akashnet.net:443";
+const rawSDL = `---
+version: "2.0"
+services:
+  proxy:
+    image: butcherbirdshrike/akash_notebook:0.3.1
+    expose:
+      - port: 8888
+        as: 8888
+        to:
+          - global: true
+profiles:
+  compute:
+    proxy:
+      resources:
+        cpu:
+          units: 1
+        memory:
+          size: 5gb
+        storage:
+          - size: 5gb
+  placement:
+    dcloud:
+      pricing:
+        proxy:
+          denom: uakt
+          amount: 10000
+deployment:
+  proxy:
+    dcloud:
+      profile: proxy
+      count: 1
+`;
 
 // Extend the Window interface to include Keplr
 declare global {
@@ -28,14 +62,14 @@ export async function getSigningStargateClient() {
   // Get the first account from the offline signer
   const accounts = await offlineSigner.getAccounts();
 
-  const akashRegistry = getAkashTypeRegistry();
-  console.log("Registry", akashRegistry)
+  const registry = new Registry()
+  registry.register(Message.MsgCreateDeployment, MsgCreateDeployment)
 
   // Create the SigningStargateClient
-  const client = await SigningStargateClient.connectWithSigner(
+  const client : SigningStargateClient = await SigningStargateClient.connectWithSigner(
     rpcEndpoint,
     offlineSigner,
-    { registry: new Registry(akashRegistry)}
+    { registry: registry}
   );
 
   return { client, account: accounts[0] };
@@ -47,16 +81,27 @@ export async function signTransaction(client:SigningStargateClient,
   memo?: string
 ):Promise<number>
 {
+  console.log("Signing -------> ", messages[0])
+
   const tx = await client.signAndBroadcast(wallet_address, messages, fee, memo);
 
   return tx.code
 }
 
 async function loadOrCreateCertificate(wallet_address: string, client: SigningStargateClient) {
+  const stored_certificate = localStorage.getItem("CERT");
+  
+  if(stored_certificate !== null){
+    console.log("Loaded From Storage:")
+    console.log(stored_certificate)
+    return JSON.parse(stored_certificate)
+  }
+
   const certificate = certificateManager.generatePEM(wallet_address);
   const result = await broadcastCertificate(certificate, wallet_address, client);
 
   if (result.code !== undefined && result.code === 0) {
+    localStorage.setItem("CERT", JSON.stringify(certificate))
     return certificate;
   }
 
@@ -72,17 +117,9 @@ export async function deploy() {
   const blockHeight : number = await client.getHeight();
   console.log("block Height ", blockHeight)
 
-  const depoloymentResponse = await fetch("/api/getDeploymentCreationDetails", {
-      method: "GET",
-      headers: {
-        "BLOCKHEIGHT":blockHeight.toString(),
-        "WALLETADDRESS":account.address
-      }
-  });
-  console.log(depoloymentResponse)
-
-  const { deployment, msg:deployMsg, fee:deployFee } = await depoloymentResponse.json();
-  console.log(deployment, deployMsg)
+  const sdl = SDL.fromString(rawSDL, "beta3");
+  const version = await sdl.manifestVersion();
+  const {msg:deployMsg, fee:deployFee} = getDeploymentCreationDetails(account.address, blockHeight, sdl.groups(), version);
 
   const deployResponseCode = await signTransaction(client, account.address, [deployMsg], deployFee, "create deployment")
 
@@ -90,10 +127,10 @@ export async function deploy() {
     console.error("Deployment Creation Failed Returncode: "+deployResponseCode)
   }
 
-  const leaseResponse = await fetch("/api/GetDeploymentCreationDetails", {
+  const leaseResponse = await fetch("/api/GetLeaseCreationDetails", {
     method: "GET",
     headers: {
-      "DEPLOYMENT": deployment
+      "DEPLOYMENT": JSON.stringify(deployMsg)
     }
   });
 
@@ -115,4 +152,37 @@ export async function deploy() {
   });
 
   return await sendManifestResponse.json()
+}
+
+export function getDeploymentCreationDetails(walletAddress: string, blockHeight: number, groups: any[], manifestVersion : Uint8Array) {
+  const deployment = {
+    id: {
+      owner: walletAddress,
+      dseq: blockHeight
+    },
+    groups: groups,
+    deposit: {
+      denom: "uakt",
+      amount: "5000000"
+    },
+    version: manifestVersion,
+    depositor: walletAddress
+  };
+
+  const fee = {
+    amount: [
+      {
+        denom: "uakt",
+        amount: "20000"
+      }
+    ],
+    gas: "800000"
+  };
+
+  const msg = {
+    typeUrl: "/akash.deployment.v1beta3.MsgCreateDeployment",
+    value: MsgCreateDeployment.fromPartial(deployment)
+  };
+
+  return {"msg":msg, "fee":fee}
 }
