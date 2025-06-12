@@ -8,38 +8,6 @@ import { MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
 import { SDL } from "@akashnetwork/akashjs/build/sdl";
 
 const rpcEndpoint = "https://rpc.akashnet.net:443";
-const rawSDL = `---
-version: "2.0"
-services:
-  proxy:
-    image: butcherbirdshrike/akash_notebook:0.3.1
-    expose:
-      - port: 8888
-        as: 8888
-        to:
-          - global: true
-profiles:
-  compute:
-    proxy:
-      resources:
-        cpu:
-          units: 1
-        memory:
-          size: 5gb
-        storage:
-          - size: 5gb
-  placement:
-    dcloud:
-      pricing:
-        proxy:
-          denom: uakt
-          amount: 10000
-deployment:
-  proxy:
-    dcloud:
-      profile: proxy
-      count: 1
-`;
 
 // Extend the Window interface to include Keplr
 declare global {
@@ -110,15 +78,15 @@ async function loadOrCreateCertificate(wallet_address: string, client: SigningSt
 
 export async function deploy() {
   const {client, account} = await getSigningStargateClient();
-  console.log(client, account)
   const certificate = await loadOrCreateCertificate(account.address, client);
-  console.log(certificate)
-
   const blockHeight : number = await client.getHeight();
-  console.log("block Height ", blockHeight)
 
+  const SdlResponse = await fetch("/api/getSdlDetails", {
+    method: "GET"
+  });
+
+  const {rawSDL, version} = await SdlResponse.json();
   const sdl = SDL.fromString(rawSDL, "beta3");
-  const version = await sdl.manifestVersion();
   const {msg:deployMsg, fee:deployFee} = getDeploymentCreationDetails(account.address, blockHeight, sdl.groups(), version);
 
   const deployResponseCode = await signTransaction(client, account.address, [deployMsg], deployFee, "create deployment")
@@ -127,7 +95,7 @@ export async function deploy() {
     console.error("Deployment Creation Failed Returncode: "+deployResponseCode)
   }
 
-  const leaseResponse = await fetch("/api/GetLeaseCreationDetails", {
+  const leaseResponse = await fetch("/api/getLeaseCreationDetails", {
     method: "GET",
     headers: {
       "DEPLOYMENT": JSON.stringify(deployMsg)

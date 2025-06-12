@@ -64,6 +64,12 @@ type Lease = {
   };
 };
 
+export async function loadSDL() {
+  const sdl = SDL.fromString(rawSDL, "beta3");
+  const ver = await sdl.manifestVersion();
+  return { rawSDL:rawSDL, manifestVersion:ver }
+}
+
 export async function fetchBid(dseq: number, owner: string) {
   const rpc = await getRpc(rpcEndpoint);
   const client = new QueryMarketClient(rpc);
