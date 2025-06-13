@@ -1,3 +1,4 @@
+import { type CertificatePem } from "@akashnetwork/akashjs/build/certificates/certificate-manager/CertificateManager";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { Registry, type EncodeObject } from "@cosmjs/proto-signing";
 import { Message } from "@akashnetwork/akashjs/build/stargate";
@@ -6,8 +7,22 @@ import { type Window as KeplrWindow } from "@keplr-wallet/types";
 import { broadcastCertificate } from "@akashnetwork/akashjs/build/certificates";
 import { MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
 import { SDL } from "@akashnetwork/akashjs/build/sdl";
+import { getRpc } from "@akashnetwork/akashjs/build/rpc";
+import { QueryBidsRequest, QueryClientImpl as QueryMarketClient, MsgCreateLease, BidID } from "@akashnetwork/akash-api/akash/market/v1beta4";
+import https from "https";
+import { QueryClientImpl as QueryProviderClient, QueryProviderRequest } from "@akashnetwork/akash-api/akash/provider/v1beta3";
 
 const rpcEndpoint = "https://rpc.akashnet.net:443";
+
+type Lease = {
+  id: {
+    owner: string;
+    dseq: number;
+    provider: string;
+    gseq: number;
+    oseq: number;
+  };
+};
 
 // Extend the Window interface to include Keplr
 declare global {
@@ -32,7 +47,7 @@ export async function getSigningStargateClient() {
 
   const registry = new Registry()
   registry.register(Message.MsgCreateDeployment, MsgCreateDeployment)
-
+  registry.register(Message.MsgCreateLease, MsgCreateLease)
   // Create the SigningStargateClient
   const client : SigningStargateClient = await SigningStargateClient.connectWithSigner(
     rpcEndpoint,
@@ -85,41 +100,41 @@ export async function deploy() {
     method: "GET"
   });
 
-  const {rawSDL, version} = await SdlResponse.json();
+  const {rawSDL, manifestVersion} = await SdlResponse.json();
   const sdl = SDL.fromString(rawSDL, "beta3");
-  const {msg:deployMsg, fee:deployFee} = getDeploymentCreationDetails(account.address, blockHeight, sdl.groups(), version);
-
+  const uint_version = new Uint8Array(32);
+  let i = 0; 
+  for( const [key, val] of Object.entries(manifestVersion)){
+    uint_version[i] = val;
+    i++;
+  }
+  console.log(uint_version)
+  const {msg:deployMsg, fee:deployFee} = getDeploymentCreationDetails(account.address, blockHeight, sdl.groups(), uint_version);
+  
   const deployResponseCode = await signTransaction(client, account.address, [deployMsg], deployFee, "create deployment")
 
   if(deployResponseCode != 0){
     console.error("Deployment Creation Failed Returncode: "+deployResponseCode)
   }
 
-  const leaseResponse = await fetch("/api/getLeaseCreationDetails", {
-    method: "GET",
-    headers: {
-      "DEPLOYMENT": JSON.stringify(deployMsg)
-    }
-  });
-
-  const { msg:leaseMsg, fee:leaseFee, lease:lease } = await leaseResponse.json()
-  console.log(lease)
-
+  const { msg:leaseMsg, fee:leaseFee, lease:lease } = await getLeaseCreationDetails(blockHeight, account.address);
+  console.log("Lease: ", lease)
+  console.log("Message: ", leaseMsg)
   const leaseResponseCode = await signTransaction(client, account.address, [leaseMsg], leaseFee, "create lease")
 
   if(leaseResponseCode != 0){
     console.error("Lease Creation Failed Returncode: "+deployResponseCode)
   }
 
-  const sendManifestResponse = await fetch("/api/postManifest", {
-    method: "POST",
-    headers: {
-      "CERTIFICATE": JSON.stringify(certificate),
-      "LEASE": JSON.stringify(lease),
-    }
-  });
+//  const sendManifestResponse = await fetch("/api/postManifest", {
+//    method: "POST",
+//    headers: {
+//      "CERTIFICATE": JSON.stringify(certificate),
+//      "LEASE": JSON.stringify(lease),
+//    }
+//  });
 
-  return await sendManifestResponse.json()
+  return await sendManifest(sdl, lease, certificate)
 }
 
 export function getDeploymentCreationDetails(walletAddress: string, blockHeight: number, groups: any[], manifestVersion : Uint8Array) {
@@ -153,4 +168,72 @@ export function getDeploymentCreationDetails(walletAddress: string, blockHeight:
   };
 
   return {"msg":msg, "fee":fee}
+}
+
+export async function fetchBid(dseq: number, owner: string) {
+  const rpc = await getRpc(rpcEndpoint);
+  const client = new QueryMarketClient(rpc);
+  const request = QueryBidsRequest.fromPartial({
+    filters: {
+      owner: owner,
+      dseq: dseq
+    }
+  });
+
+  const startTime = Date.now();
+  const timeout = 1000 * 60 * 5;
+
+  while (Date.now() - startTime < timeout) {
+    console.log("Fetching bids...");
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    const bids = await client.Bids(request);
+
+    if (bids.bids.length > 0 && bids.bids[0].bid !== undefined) {
+      console.log("Bid fetched!");
+      return bids.bids[0].bid;
+    }
+
+    // wait 1 second before trying again
+  }
+
+  throw new Error(`Could not fetch bid for deployment ${dseq}.Timeout reached.`);
+}
+
+export async function getLeaseCreationDetails(dseq: number, owner: string){
+  const bid = await fetchBid(dseq, owner);
+
+  if (bid.bidId === undefined) {
+    throw new Error("Bid ID is undefined");
+  }
+
+  const leaseId = {
+    bidId: bid.bidId
+  };
+
+  const fee = {
+    amount: [
+      {
+        denom: "uakt",
+        amount: "50000"
+      }
+    ],
+    gas: "2000000"
+  };
+
+  const msg = {
+    typeUrl: `/${MsgCreateLease.$type}`,
+    value: MsgCreateLease.fromPartial(leaseId)
+  };
+
+  const lease = {
+    id: BidID.toJSON(bid.bidId) as {
+      owner: string;
+      dseq: number;
+      provider: string;
+      gseq: number;
+      oseq: number;
+    }
+  };
+
+  return { msg, fee, lease }
 }

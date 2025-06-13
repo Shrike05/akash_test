@@ -99,10 +99,7 @@ export async function fetchBid(dseq: number, owner: string) {
   throw new Error(`Could not fetch bid for deployment ${dseq}.Timeout reached.`);
 }
 
-export async function getLeaseCreationDetails(deployment: Deployment){
-  const {
-    id: { dseq, owner }
-  } = deployment;
+export async function getLeaseCreationDetails(dseq: number, owner: string){
   const bid = await fetchBid(dseq, owner);
 
   if (bid.bidId === undefined) {
