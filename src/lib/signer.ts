@@ -26,7 +26,7 @@ type Lease = {
 
 // Extend the Window interface to include Keplr
 declare global {
-  interface Window extends KeplrWindow {}
+  interface Window extends KeplrWindow { }
 }
 
 export async function getSigningStargateClient() {
@@ -49,21 +49,20 @@ export async function getSigningStargateClient() {
   registry.register(Message.MsgCreateDeployment, MsgCreateDeployment)
   registry.register(Message.MsgCreateLease, MsgCreateLease)
   // Create the SigningStargateClient
-  const client : SigningStargateClient = await SigningStargateClient.connectWithSigner(
+  const client: SigningStargateClient = await SigningStargateClient.connectWithSigner(
     rpcEndpoint,
     offlineSigner,
-    { registry: registry}
+    { registry: registry }
   );
 
   return { client, account: accounts[0] };
 }
 
-export async function signTransaction(client:SigningStargateClient, 
-  wallet_address:string , messages: readonly EncodeObject[], 
-  fee: StdFee | "auto" | number, 
+export async function signTransaction(client: SigningStargateClient,
+  wallet_address: string, messages: readonly EncodeObject[],
+  fee: StdFee | "auto" | number,
   memo?: string
-):Promise<number>
-{
+): Promise<number> {
   console.log("Signing -------> ", messages[0])
 
   const tx = await client.signAndBroadcast(wallet_address, messages, fee, memo);
@@ -73,8 +72,8 @@ export async function signTransaction(client:SigningStargateClient,
 
 async function loadOrCreateCertificate(wallet_address: string, client: SigningStargateClient) {
   const stored_certificate = localStorage.getItem("CERT");
-  
-  if(stored_certificate !== null){
+
+  if (stored_certificate !== null) {
     console.log("Loaded From Storage:")
     console.log(stored_certificate)
     return JSON.parse(stored_certificate)
@@ -92,52 +91,55 @@ async function loadOrCreateCertificate(wallet_address: string, client: SigningSt
 }
 
 export async function deploy() {
-  const {client, account} = await getSigningStargateClient();
+  const { client, account } = await getSigningStargateClient();
   const certificate = await loadOrCreateCertificate(account.address, client);
-  const blockHeight : number = await client.getHeight();
+  const blockHeight: number = await client.getHeight();
 
   const SdlResponse = await fetch("/api/getSdlDetails", {
     method: "GET"
   });
 
-  const {rawSDL, manifestVersion} = await SdlResponse.json();
+  const { rawSDL, manifestVersion } = await SdlResponse.json();
   const sdl = SDL.fromString(rawSDL, "beta3");
   const uint_version = new Uint8Array(32);
-  let i = 0; 
-  for( const [key, val] of Object.entries(manifestVersion)){
+  let i = 0;
+  for (const [key, val] of Object.entries(manifestVersion)) {
     uint_version[i] = val;
     i++;
   }
   console.log(uint_version)
-  const {msg:deployMsg, fee:deployFee} = getDeploymentCreationDetails(account.address, blockHeight, sdl.groups(), uint_version);
-  
+  const { msg: deployMsg, fee: deployFee } = getDeploymentCreationDetails(account.address, blockHeight, sdl.groups(), uint_version);
+
   const deployResponseCode = await signTransaction(client, account.address, [deployMsg], deployFee, "create deployment")
 
-  if(deployResponseCode != 0){
-    console.error("Deployment Creation Failed Returncode: "+deployResponseCode)
+  if (deployResponseCode != 0) {
+    console.error("Deployment Creation Failed Returncode: " + deployResponseCode)
   }
 
-  const { msg:leaseMsg, fee:leaseFee, lease:lease } = await getLeaseCreationDetails(blockHeight, account.address);
+  const { msg: leaseMsg, fee: leaseFee, lease: lease } = await getLeaseCreationDetails(blockHeight, account.address);
   console.log("Lease: ", lease)
   console.log("Message: ", leaseMsg)
   const leaseResponseCode = await signTransaction(client, account.address, [leaseMsg], leaseFee, "create lease")
 
-  if(leaseResponseCode != 0){
-    console.error("Lease Creation Failed Returncode: "+deployResponseCode)
+  if (leaseResponseCode != 0) {
+    console.error("Lease Creation Failed Returncode: " + deployResponseCode)
   }
 
-//  const sendManifestResponse = await fetch("/api/postManifest", {
-//    method: "POST",
-//    headers: {
-//      "CERTIFICATE": JSON.stringify(certificate),
-//      "LEASE": JSON.stringify(lease),
-//    }
-//  });
+  console.log(lease)
+  console.log(certificate)
 
-  return await sendManifest(sdl, lease, certificate)
+  const sendManifestResponse = await fetch("/api/postManifest", {
+    method: "POST",
+    headers: {
+      "CERTIFICATE": JSON.stringify(certificate),
+      "LEASE": JSON.stringify(lease),
+    }
+  });
+
+  return await sendManifestResponse.json();
 }
 
-export function getDeploymentCreationDetails(walletAddress: string, blockHeight: number, groups: any[], manifestVersion : Uint8Array) {
+export function getDeploymentCreationDetails(walletAddress: string, blockHeight: number, groups: any[], manifestVersion: Uint8Array) {
   const deployment = {
     id: {
       owner: walletAddress,
@@ -167,7 +169,7 @@ export function getDeploymentCreationDetails(walletAddress: string, blockHeight:
     value: MsgCreateDeployment.fromPartial(deployment)
   };
 
-  return {"msg":msg, "fee":fee}
+  return { "msg": msg, "fee": fee }
 }
 
 export async function fetchBid(dseq: number, owner: string) {
@@ -199,7 +201,7 @@ export async function fetchBid(dseq: number, owner: string) {
   throw new Error(`Could not fetch bid for deployment ${dseq}.Timeout reached.`);
 }
 
-export async function getLeaseCreationDetails(dseq: number, owner: string){
+export async function getLeaseCreationDetails(dseq: number, owner: string) {
   const bid = await fetchBid(dseq, owner);
 
   if (bid.bidId === undefined) {
