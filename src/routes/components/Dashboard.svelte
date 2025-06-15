@@ -1,12 +1,32 @@
 <script>
+    import { getDeploymentData, getDeploymentDetails } from '$lib/get_deployments';
+    import { getSigningStargateClient } from '$lib/signer';
     import ProjectCard from './DeploymentCard.svelte';
+    import { onMount } from 'svelte';
+
+    let client, account, data;
+    let deployments = $state([]);
+
+    onMount( async () => {
+      let result = await getSigningStargateClient();
+      account = result.account;
+      data = await getDeploymentData(account.address);
+      console.log("Data: ", data)
   
+      for (let i= 0; i < data.length; i++) {
+        const e = data[i];
+        deployments.push({ 
+          name: `Deployment nr: ${e.dseq}`, 
+          url: "https://alpha.example.com", 
+          cost: e.price/10000, 
+          balance: e.balance/1000000, 
+          resources: `${e.cpu/1000} vCPU • ${e.memory/1000000000} GB • ${e.storage/1000000000} GB`, 
+          status: "healthy" });
+      }
+    });
+
+
     let userName = "User"; // This could come from user input or auth
-    let deployments = [
-      { name: "Project Alpha", url: "https://alpha.example.com", cost: "127.45 AKT", balance: 534.8, resources: "4 vCPU • 8 GB • 100 GB", status: "healthy" },
-      { name: "Project Beta", url: "https://beta.example.com", cost: "89.30 AKT", balance: 312.5, resources: "2 vCPU • 4 GB • 80 GB", status: "healthy" },
-      { name: "Project Gamma", url: "https://gamma.example.com", cost: "214.75 AKT", balance: 78.2, resources: "6 vCPU • 12 GB • 300 GB", status: "low" }
-    ];
   
     let recentProjects = [
       { name: "Project Delta", recent: "25-03-14" },
@@ -61,7 +81,6 @@
       activeColumn = "right";
     }
   </script>
-  
   <main class="container">
     <div class="content">
       <section class="dashboard">
