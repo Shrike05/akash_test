@@ -12,12 +12,14 @@
       account = result.account;
       data = await getDeploymentData(account.address);
       console.log("Data: ", data)
-  
+
+      
       for (let i= 0; i < data.length; i++) {
         const e = data[i];
+        const provider_data = JSON.parse(localStorage.getItem(e.dseq.toString()))
         deployments.push({ 
           name: `Deployment nr: ${e.dseq}`, 
-          url: "https://alpha.example.com", 
+          url: `${provider_data.link}/tree?`, 
           cost: e.price/10000, 
           balance: e.balance/1000000, 
           resources: `${e.cpu/1000} vCPU • ${e.memory/1000000000} GB • ${e.storage/1000000000} GB`, 

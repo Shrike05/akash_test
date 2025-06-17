@@ -18,7 +18,7 @@ const rawSDL = `---
 version: "2.0"
 services:
   proxy:
-    image: butcherbirdshrike/akash_notebook:0.3.1
+    image: butcherbirdshrike/akash_notebook:nosec
     expose:
       - port: 8888
         as: 8888
@@ -31,9 +31,9 @@ profiles:
         cpu:
           units: 1
         memory:
-          size: 5gb
+          size: 16gb
         storage:
-          - size: 5gb
+          - size: 16gb
   placement:
     dcloud:
       pricing:

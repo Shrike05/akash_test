@@ -74,8 +74,6 @@ async function loadOrCreateCertificate(wallet_address: string, client: SigningSt
   const stored_certificate = localStorage.getItem("CERT");
 
   if (stored_certificate !== null) {
-    console.log("Loaded From Storage:")
-    console.log(stored_certificate)
     return JSON.parse(stored_certificate)
   }
 
@@ -107,7 +105,6 @@ export async function deploy() {
     uint_version[i] = val;
     i++;
   }
-  console.log(uint_version)
   const { msg: deployMsg, fee: deployFee } = getDeploymentCreationDetails(account.address, blockHeight, sdl.groups(), uint_version);
 
   const deployResponseCode = await signTransaction(client, account.address, [deployMsg], deployFee, "create deployment")
@@ -117,16 +114,11 @@ export async function deploy() {
   }
 
   const { msg: leaseMsg, fee: leaseFee, lease: lease } = await getLeaseCreationDetails(blockHeight, account.address);
-  console.log("Lease: ", lease)
-  console.log("Message: ", leaseMsg)
   const leaseResponseCode = await signTransaction(client, account.address, [leaseMsg], leaseFee, "create lease")
 
   if (leaseResponseCode != 0) {
     console.error("Lease Creation Failed Returncode: " + deployResponseCode)
   }
-
-  console.log(lease)
-  console.log(certificate)
 
   const sendManifestResponse = await fetch("/api/postManifest", {
     method: "POST",
@@ -136,7 +128,11 @@ export async function deploy() {
     }
   });
 
-  return await sendManifestResponse.json();
+  const mainfest_response = await sendManifestResponse.json();
+
+  localStorage.setItem(blockHeight.toString(), JSON.stringify(mainfest_response))
+  
+  return mainfest_response;
 }
 
 export function getDeploymentCreationDetails(walletAddress: string, blockHeight: number, groups: any[], manifestVersion: Uint8Array) {
