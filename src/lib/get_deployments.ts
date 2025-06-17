@@ -12,6 +12,10 @@ export async function getDeploymentData(wallet_address: string) {
   const client = new QueryClientImpl(await getRpc("http://rpc.akashnet.net"));
   const response = await client.Deployments(request);
   const data = QueryDeploymentsResponse.toJSON(response);
+  
+  if (data.deployments == undefined){
+    return []
+  }
 
   const deployments = [];
 

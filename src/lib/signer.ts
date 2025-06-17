@@ -5,7 +5,7 @@ import { Message } from "@akashnetwork/akashjs/build/stargate";
 import { SigningStargateClient, type SequenceResponse, type StdFee } from "@cosmjs/stargate";
 import { type Window as KeplrWindow } from "@keplr-wallet/types";
 import { broadcastCertificate } from "@akashnetwork/akashjs/build/certificates";
-import { MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
+import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
 import { SDL } from "@akashnetwork/akashjs/build/sdl";
 import { getRpc } from "@akashnetwork/akashjs/build/rpc";
 import { QueryBidsRequest, QueryClientImpl as QueryMarketClient, MsgCreateLease, BidID } from "@akashnetwork/akash-api/akash/market/v1beta4";
@@ -48,6 +48,8 @@ export async function getSigningStargateClient() {
   const registry = new Registry()
   registry.register(Message.MsgCreateDeployment, MsgCreateDeployment)
   registry.register(Message.MsgCreateLease, MsgCreateLease)
+  registry.register(Message.MsgCloseDeployment, MsgCloseDeployment)
+  
   // Create the SigningStargateClient
   const client: SigningStargateClient = await SigningStargateClient.connectWithSigner(
     rpcEndpoint,

@@ -1,15 +1,27 @@
-<script>
-    export let name;
+<script lang="ts">
+    import { close_deployment } from "$lib/close_deployment";
+    import type { SigningStargateClient } from "@cosmjs/stargate";
+    import { createEventDispatcher } from "svelte";
+    import { expoOut } from "svelte/easing";
+
+    export let name: string;
     export let url;
     export let cost;
     export let balance;
     export let resources;
     export let status;
+
+    const dispatch = createEventDispatcher();
   
     let isDropdownOpen = false;
   
     function toggleDropdown() {
       isDropdownOpen = !isDropdownOpen;
+    }
+    function close_this_deployment(){
+      dispatch("CLOSE", {
+        dseq: name
+      });
     }
 </script>
 
@@ -46,7 +58,10 @@
           <div class="dropdown-content">
             <a href="#" on:click|preventDefault={() => isDropdownOpen = false}>Add Funds</a>
             <a href="#" on:click|preventDefault={() => isDropdownOpen = false}>Redeploy</a>
-            <a href="#" on:click|preventDefault={() => isDropdownOpen = false}>Close deployment</a>
+            <a href="#" on:click|preventDefault={() => {
+              isDropdownOpen = false;
+              close_this_deployment();
+              }}>Close deployment</a>
           </div>
         {/if}
       </div>
