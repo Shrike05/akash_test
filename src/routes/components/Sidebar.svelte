@@ -1,5 +1,5 @@
 <script>
-    import { deploy } from '$lib/signer';
+    import { deploy, getSigningStargateClient } from '$lib/signer';
   import { createEventDispatcher } from 'svelte';
 
   let activePage = "Dashboard"; // Default to Dashboard
@@ -19,9 +19,12 @@
   async function handleCreateOption(option) {
     console.log(`Selected: ${option}`); // Placeholder for handling the option
     isDropdownOpen = false; // Close dropdown after selection
+
+    const {client, account} = await getSigningStargateClient();
     // Add logic for "New Project" or "New Dataset" here
     if (option === "New Project") {
-      const response = await deploy();
+      //setActivePage("NewDeployment")
+      const response = await deploy(client, account);
       console.log(response)
     } else if (option === "New Dataset") {
       // Logic for creating a new dataset

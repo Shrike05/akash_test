@@ -8,8 +8,9 @@
   import ProjectCard from "./DeploymentCard.svelte";
   import { onMount } from "svelte";
     import { close_deployment } from "$lib/close_deployment";
+    import type { AccountData } from "@cosmjs/proto-signing";
 
-  let client : SigningStargateClient, account, data;
+  let client : SigningStargateClient, account : AccountData, data;
   let deployments = $state([]);
 
   onMount(async () => {

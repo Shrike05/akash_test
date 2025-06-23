@@ -1,6 +1,6 @@
 import { type CertificatePem } from "@akashnetwork/akashjs/build/certificates/certificate-manager/CertificateManager";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
-import { Registry, type EncodeObject } from "@cosmjs/proto-signing";
+import { Registry, type AccountData, type EncodeObject } from "@cosmjs/proto-signing";
 import { Message } from "@akashnetwork/akashjs/build/stargate";
 import { SigningStargateClient, type SequenceResponse, type StdFee } from "@cosmjs/stargate";
 import { type Window as KeplrWindow } from "@keplr-wallet/types";
@@ -90,8 +90,7 @@ async function loadOrCreateCertificate(wallet_address: string, client: SigningSt
   throw new Error(`Could not create certificate: ${result.rawLog} `);
 }
 
-export async function deploy() {
-  const { client, account } = await getSigningStargateClient();
+export async function deploy(client: SigningStargateClient, account: AccountData) {
   const certificate = await loadOrCreateCertificate(account.address, client);
   const blockHeight: number = await client.getHeight();
 
@@ -119,7 +118,7 @@ export async function deploy() {
   const leaseResponseCode = await signTransaction(client, account.address, [leaseMsg], leaseFee, "create lease")
 
   if (leaseResponseCode != 0) {
-    console.error("Lease Creation Failed Returncode: " + deployResponseCode)
+    console.error("Lease Creation Failed Returncode: " + leaseResponseCode)
   }
 
   const sendManifestResponse = await fetch("/api/postManifest", {

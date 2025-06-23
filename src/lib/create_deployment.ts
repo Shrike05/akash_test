@@ -1,7 +1,6 @@
 import https from "https";
-import { MsgCreateDeployment } from "@akashnetwork/akash-api/akash/deployment/v1beta3";
 import { QueryClientImpl as QueryProviderClient, QueryProviderRequest } from "@akashnetwork/akash-api/akash/provider/v1beta3";
-import { QueryBidsRequest, QueryClientImpl as QueryMarketClient, MsgCreateLease, BidID } from "@akashnetwork/akash-api/akash/market/v1beta4";
+import { QueryBidsRequest, QueryClientImpl as QueryMarketClient} from "@akashnetwork/akash-api/akash/market/v1beta4";
 import { getRpc } from "@akashnetwork/akashjs/build/rpc";
 import { SDL } from "@akashnetwork/akashjs/build/sdl";
 import { type CertificatePem } from "@akashnetwork/akashjs/build/certificates/certificate-manager/CertificateManager";
@@ -47,12 +46,6 @@ deployment:
       count: 1
 `;
 
-type Deployment = {
-  id: {
-    owner: string;
-    dseq: number;
-  };
-};
 
 type Lease = {
   id: {
@@ -98,46 +91,6 @@ export async function fetchBid(dseq: number, owner: string) {
 
   throw new Error(`Could not fetch bid for deployment ${dseq}.Timeout reached.`);
 }
-
-export async function getLeaseCreationDetails(dseq: number, owner: string){
-  const bid = await fetchBid(dseq, owner);
-
-  if (bid.bidId === undefined) {
-    throw new Error("Bid ID is undefined");
-  }
-
-  const leaseId = {
-    bidId: bid.bidId
-  };
-
-  const fee = {
-    amount: [
-      {
-        denom: "uakt",
-        amount: "50000"
-      }
-    ],
-    gas: "2000000"
-  };
-
-  const msg = {
-    typeUrl: `/${MsgCreateLease.$type}`,
-    value: MsgCreateLease.fromPartial(leaseId)
-  };
-
-  const lease = {
-    id: BidID.toJSON(bid.bidId) as {
-      owner: string;
-      dseq: number;
-      provider: string;
-      gseq: number;
-      oseq: number;
-    }
-  };
-
-  return { msg, fee, lease }
-}
-
 async function queryLeaseStatus(lease: Lease, providerUri: string, certificate: CertificatePem) {
   const id = lease.id;
 
