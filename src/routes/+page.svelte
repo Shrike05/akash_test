@@ -5,6 +5,7 @@
   import Projects from './components/Projects.svelte';
   import Datasets from './components/Datasets.svelte';
   import Events from './components/Events.svelte';
+    import NewDeployment from './components/NewDeployment.svelte';
 
   let activePage = "Dashboard"; // Default to Dashboard
 
@@ -13,6 +14,7 @@
     "Projects": Projects,
     "Datasets": Datasets,
     "Events": Events,
+    "NewDeployment": NewDeployment
   };
 
   function handlePageChange(event) {

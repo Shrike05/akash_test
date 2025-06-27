@@ -1,8 +1,18 @@
 <script>
+    import { createEventDispatcher } from "svelte";
+
     let {
-        name,
-        cost
+        bid
     } = $props();
+
+    let name = bid.bidId.provider;
+    let cost = Number.parseFloat(bid.price.amount).toFixed(2);
+
+    let dispatch = createEventDispatcher();
+
+    function choose_provider(){
+        dispatch("ChooseProvider", { bid });
+    }
 </script>
 
 <div class="card">
@@ -10,7 +20,7 @@
         <h3>Name: {name}</h3>
         <h3>Cost: {cost} AKT </h3>
     </div>
-    <button>Choose</button>
+    <button onclick= {choose_provider}>Choose</button>
 </div>
 
 <style>
