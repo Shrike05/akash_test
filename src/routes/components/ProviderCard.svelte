@@ -1,12 +1,29 @@
-<script>
+<script lang="ts">
     import { createEventDispatcher } from "svelte";
+    import { getProviderData } from "$lib/get_provider";
 
     let {
-        bid
+        bid,
+        escrow
     } = $props();
 
-    let name = bid.bidId.provider;
-    let cost = Number.parseFloat(bid.price.amount).toFixed(2);
+    let providerAddress = escrow.owner;
+
+    let providerDataPromise = getProviderData(providerAddress);
+
+    // let providerData = await getProviderData(providerAddress);
+    // console.log("---------------------------------------------------")
+    // console.log(providerAddress)
+    // console.log(providerData)
+    // console.log("---------------------------------------------------")
+
+    // let providerURI = providerData
+
+    let cost : number = $state(Number.parseFloat(bid.price.amount));
+
+    //convert from uakt per 6 seconds to uakt per hour
+    cost *= 10 * 60;
+
 
     let dispatch = createEventDispatcher();
 
@@ -17,8 +34,17 @@
 
 <div class="card">
     <div class="details">
-        <h3>Name: {name}</h3>
-        <h3>Cost: {cost} AKT </h3>
+        {#await providerDataPromise then providerData}
+            <h3>Address: {providerAddress}</h3>
+
+            <h3>{console.log(providerData)}</h3>
+            <h3>URI: {providerData.provider.hostUri}</h3>
+            {#each providerData.provider.attributes as attribute}
+                <h3>{attribute.key}: {attribute.value}</h3>
+            {/each}
+            
+            <h3>Cost: {cost.toFixed(2)} uAKT / min </h3>
+        {/await}
     </div>
     <button onclick= {choose_provider}>Choose</button>
 </div>

@@ -31,7 +31,7 @@
         account = result.account;
         blockheight = await client.getHeight();
 
-        let { msg, fee } = await createDeploymentRequest(client, account, blockheight);
+        let { msg, fee } = await createDeploymentRequest(account, blockheight);
 
         await signTransaction(client, account.address, [msg], fee, "create deployment")
 
@@ -48,7 +48,7 @@
     </div>
     <div class="providers">
         {#each bids as bid}
-            <ProviderCard bid={bid.bid}  on:ChooseProvider={chosenProvider} />
+            <ProviderCard bid={bid.bid} escrow={bid.escrowAccount} on:ChooseProvider={chosenProvider} />
         {/each}
         {#if bids.length == 0}
             {#if deploying}

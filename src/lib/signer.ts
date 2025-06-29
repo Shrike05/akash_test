@@ -90,7 +90,7 @@ async function loadOrCreateCertificate(wallet_address: string, client: SigningSt
   throw new Error(`Could not create certificate: ${result.rawLog} `);
 }
 
-export async function createDeploymentRequest(client: SigningStargateClient, account: AccountData, blockHeight: number){
+export async function createDeploymentRequest(account: AccountData, blockHeight: number){
   const SdlResponse = await fetch("/api/getSdlDetails", {
     method: "GET"
   });
@@ -104,8 +104,6 @@ export async function createDeploymentRequest(client: SigningStargateClient, acc
     i++;
   }
   return getDeploymentCreationDetails(account.address, blockHeight, sdl.groups(), uint_version);
-
-  const deployResponseCode = await signTransaction(client, account.address, [deployMsg], deployFee, "create deployment")
 }
 
 export async function fetch_bids(blockHeight: number, accountAddress: string){
