@@ -22,7 +22,8 @@
     let cost : number = $state(Number.parseFloat(bid.price.amount));
 
     //convert from uakt per 6 seconds to uakt per hour
-    cost *= 10 * 60;
+    cost *= 10 * 60 * 24;
+    cost *= Math.pow(10, -6)
 
 
     let dispatch = createEventDispatcher();
@@ -42,8 +43,10 @@
   {#await providerDataPromise then providerData}
     <div class="card-content">
       <div class="card-header">
-        <h3>Provider: {providerAddress}</h3>
-        <div class="cost">Cost: {cost.toFixed(2)} uAKT / min</div>
+        <h3 class="truncated-address" title={providerAddress}>
+          Provider: {providerAddress.slice(0, 6)}...{providerAddress.slice(-4)}
+        </h3>
+        <div class="cost">Cost: {cost.toFixed(2)} AKT/day</div>
       </div>
       
       <div class="card-main">
@@ -77,6 +80,13 @@
     border-radius: 10px;
     margin-bottom: 20px;
     width: 90%;
+  }
+
+  .truncated-address {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   
   .card-header {
