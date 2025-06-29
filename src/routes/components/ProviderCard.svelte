@@ -30,39 +30,141 @@
     function choose_provider(){
         dispatch("ChooseProvider", { bid });
     }
+
+    let showAttributes:boolean = $state(false);
+  
+    function toggleAttributes() {
+        showAttributes = !showAttributes;
+    }
 </script>
 
 <div class="card">
-    <div class="details">
-        {#await providerDataPromise then providerData}
-            <h3>Address: {providerAddress}</h3>
-
-            <h3>{console.log(providerData)}</h3>
-            <h3>URI: {providerData.provider.hostUri}</h3>
-            {#each providerData.provider.attributes as attribute}
-                <h3>{attribute.key}: {attribute.value}</h3>
-            {/each}
-            
-            <h3>Cost: {cost.toFixed(2)} uAKT / min </h3>
-        {/await}
+  {#await providerDataPromise then providerData}
+    <div class="card-content">
+      <div class="card-header">
+        <h3>Provider: {providerAddress}</h3>
+        <div class="cost">Cost: {cost.toFixed(2)} uAKT / min</div>
+      </div>
+      
+      <div class="card-main">
+        <div class="uri">URI: {providerData.provider.hostUri}</div>
+        <button class="toggle-btn" on:click={toggleAttributes}>
+          {#if showAttributes}Hide Attributes{:else}View Attributes{/if}
+        </button>
+      </div>
+      
+      {#if showAttributes}
+        <div class="attributes-dropdown">
+          {#each providerData.provider.attributes as attribute}
+            <div class="attribute">
+              <span class="key">{attribute.key}:</span>
+              <span class="value">{attribute.value}</span>
+            </div>
+          {/each}
+        </div>
+      {/if}
+      
+      <button class="choose-btn" on:click={choose_provider}>Choose Provider</button>
     </div>
-    <button onclick= {choose_provider}>Choose</button>
+  {/await}
 </div>
 
 <style>
-    .card{
-        background: rgba(15, 15, 15, 0.8);
-        border: 1px solid #753e3e;
-        padding: 20px;
-        border-radius: 10px;
-        margin-bottom: 20px;
-        width: 90%;
-    }
-    .details {
-      display: flex;
-      gap: 15px;
-      flex-wrap: wrap;
-      flex-direction: row;
-      justify-content: space-between;
-    }
+  .card {
+    background: rgba(15, 15, 15, 0.8);
+    border: 1px solid #753e3e;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    width: 90%;
+  }
+  
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+  }
+  
+  .card-header h3 {
+    font-size: 16px;
+    margin: 0;
+    color: white;
+  }
+  
+  .cost {
+    font-size: 16px;
+    color: #e62e00;
+    font-weight: bold;
+  }
+  
+  .card-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+  
+  .uri {
+    font-size: 14px;
+    color: #aaa;
+  }
+  
+  .toggle-btn {
+    background: #e62e00;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.3s ease;
+  }
+  
+  .toggle-btn:hover {
+    background: #ff4500;
+    box-shadow: 0 3px 10px rgba(230, 46, 0, 0.4);
+  }
+  
+  .attributes-dropdown {
+    background: rgba(30, 30, 30, 0.9);
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 15px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  
+  .attribute {
+    display: flex;
+    padding: 5px 0;
+    border-bottom: 1px solid #333;
+  }
+  
+  .key {
+    font-weight: bold;
+    color: #888;
+    min-width: 120px;
+  }
+  
+  .value {
+    color: #ccc;
+    word-break: break-word;
+  }
+  
+  .choose-btn {
+    background: #e62e00;
+    border: none;
+    padding: 10px;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    width: 100%;
+    font-weight: bold;
+    transition: all 0.3s ease;
+  }
+  
+  .choose-btn:hover {
+    background: #ff4500;
+    box-shadow: 0 3px 10px rgba(230, 46, 0, 0.4);
+  }
 </style>
