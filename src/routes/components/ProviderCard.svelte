@@ -11,14 +11,6 @@
 
     let providerDataPromise = getProviderData(providerAddress);
 
-    // let providerData = await getProviderData(providerAddress);
-    // console.log("---------------------------------------------------")
-    // console.log(providerAddress)
-    // console.log(providerData)
-    // console.log("---------------------------------------------------")
-
-    // let providerURI = providerData
-
     let cost : number = $state(Number.parseFloat(bid.price.amount));
 
     //convert from uakt per 6 seconds to uakt per hour
@@ -51,7 +43,7 @@
       
       <div class="card-main">
         <div class="uri">URI: {providerData.provider.hostUri}</div>
-        <button class="toggle-btn" on:click={toggleAttributes}>
+        <button class="toggle-btn" onclick={toggleAttributes}>
           {#if showAttributes}Hide Attributes{:else}View Attributes{/if}
         </button>
       </div>
@@ -67,7 +59,7 @@
         </div>
       {/if}
       
-      <button class="choose-btn" on:click={choose_provider}>Choose Provider</button>
+      <button class="choose-btn" onclick={choose_provider}>Choose Provider</button>
     </div>
   {/await}
 </div>

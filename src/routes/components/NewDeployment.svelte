@@ -5,12 +5,12 @@
     import type { SigningStargateClient } from "@cosmjs/stargate"; 
     import type { AccountData } from "@cosmjs/proto-signing";
 
-    let deploying = false;
+    let deploying : boolean = $state(false);
 
     let bids : QueryBidResponse[] = $state([]);
     let client: SigningStargateClient, account: AccountData, blockheight: number
 
-    async function chosenProvider(event){
+    async function chosenProvider(event : any){
         let provider = event.detail.bid;
 
         let { msg, fee, lease} = await createLease(provider);
@@ -36,7 +36,6 @@
         await signTransaction(client, account.address, [msg], fee, "create deployment")
 
         bids = await fetch_bids(blockheight, account.address);
-        console.log(bids)
     }
 </script>
 
@@ -44,8 +43,8 @@
   <div class="content">
     <div class="top-section">
       <div class="header-row">
-        <h1>Providers</h1>
-        <button class="deploy-btn" on:click={create_deployment}>Deploy</button>
+        <h1>Create New Deployment</h1>
+        <button class="deploy-btn" onclick={create_deployment}>Deploy</button>
       </div>
       
       <div class="status-row">

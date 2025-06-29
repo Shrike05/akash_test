@@ -218,7 +218,7 @@ export async function sendManifest(
     });
     console.log(status);
 
-    const proxy = status.forwarded_ports.proxy[0];
+    const proxy = status?.forwarded_ports.proxy[0];
     if (status && (proxy !== null || proxy !== undefined)) {
       console.log(`available at: ${proxy.host}:${proxy.externalPort}`);
       return {

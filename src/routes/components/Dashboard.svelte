@@ -1,7 +1,6 @@
 <script lang="ts">
   import {
     getDeploymentData,
-    getDeploymentDetails,
   } from "$lib/get_deployments";
   import { getSigningStargateClient } from "$lib/signer";
     import type { SigningStargateClient } from "@cosmjs/stargate";
@@ -118,7 +117,7 @@
       <div class="quick-stats">
         <button
           class="nav-arrow left-arrow"
-          on:click={showLeftColumn}
+          onclick={showLeftColumn}
           disabled={activeColumn === "left"}>←</button
         >
         <div class="column-container">
@@ -219,7 +218,7 @@
         </div>
         <button
           class="nav-arrow right-arrow"
-          on:click={showRightColumn}
+          onclick={showRightColumn}
           disabled={activeColumn === "right"}>→</button
         >
       </div>
