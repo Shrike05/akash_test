@@ -77,9 +77,14 @@ async function loadOrCreateCertificate(wallet_address: string, client: SigningSt
   throw new Error(`Could not create certificate: ${result.rawLog} `);
 }
 
-export async function createDeploymentRequest(account: AccountData, blockHeight: number){
+export async function createDeploymentRequest(account: AccountData, blockHeight: number, cpu_units: number, memory:number, storage:number){
   const SdlResponse = await fetch("/api/getSdlDetails", {
-    method: "GET"
+    method: "GET",
+    headers: {
+      "CPU_UNITS": (cpu_units).toString(),
+      "MEMORY": (memory).toString(),
+      "STORAGE": (storage).toString()
+    }
   });
 
   const { rawSDL, manifestVersion } = await SdlResponse.json();
@@ -90,7 +95,9 @@ export async function createDeploymentRequest(account: AccountData, blockHeight:
     uint_version[i] = val;
     i++;
   }
-  return getDeploymentCreationDetails(account.address, blockHeight, sdl.groups(), uint_version);
+
+  let { msg, fee } = getDeploymentCreationDetails(account.address, blockHeight, sdl.groups(), uint_version);
+  return { msg, fee, rawSDL}
 }
 
 export async function fetch_bids(blockHeight: number, accountAddress: string){
@@ -159,7 +166,7 @@ export async function createLease(bid: Bid){
   return { msg, fee, lease }
 }
 
-export async function sendManifest(blockHeight: number, client: SigningStargateClient, accountAddress:string, lease: any){
+export async function sendManifest(blockHeight: number, client: SigningStargateClient, accountAddress:string, lease: any, rawSDL:string){
   const certificate = await loadOrCreateCertificate(accountAddress, client);
 
   const sendManifestResponse = await fetch("/api/postManifest", {
@@ -167,6 +174,7 @@ export async function sendManifest(blockHeight: number, client: SigningStargateC
     headers: {
       "CERTIFICATE": JSON.stringify(certificate),
       "LEASE": JSON.stringify(lease),
+      "RAWSDL": JSON.stringify(rawSDL)
     }
   });
 

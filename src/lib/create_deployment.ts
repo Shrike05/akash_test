@@ -1,6 +1,6 @@
 import https from "https";
 import { QueryClientImpl as QueryProviderClient, QueryProviderRequest } from "@akashnetwork/akash-api/akash/provider/v1beta3";
-import { QueryBidsRequest, QueryClientImpl as QueryMarketClient} from "@akashnetwork/akash-api/akash/market/v1beta4";
+import { QueryBidsRequest, QueryClientImpl as QueryMarketClient } from "@akashnetwork/akash-api/akash/market/v1beta4";
 import { getRpc } from "@akashnetwork/akashjs/build/rpc";
 import { SDL } from "@akashnetwork/akashjs/build/sdl";
 import { type CertificatePem } from "@akashnetwork/akashjs/build/certificates/certificate-manager/CertificateManager";
@@ -13,7 +13,18 @@ import { type CertificatePem } from "@akashnetwork/akashjs/build/certificates/ce
 const rpcEndpoint = "https://rpc.akashnet.net:443";
 
 // Update this with your SDL file
-const rawSDL = `---
+type Lease = {
+  id: {
+    owner: string;
+    dseq: number;
+    provider: string;
+    gseq: number;
+    oseq: number;
+  };
+};
+
+export async function loadSDL(cpu_units:number, memory:number, storage:number) {
+  const rawSDL = `---
 version: "2.0"
 services:
   proxy:
@@ -28,11 +39,11 @@ profiles:
     proxy:
       resources:
         cpu:
-          units: 1
+          units: ${cpu_units}
         memory:
-          size: 16gb
+          size: ${memory}gb
         storage:
-          - size: 16gb
+          - size: ${storage}gb
   placement:
     dcloud:
       pricing:
@@ -46,21 +57,11 @@ deployment:
       count: 1
 `;
 
+  console.log("SDL:\n", rawSDL)
 
-type Lease = {
-  id: {
-    owner: string;
-    dseq: number;
-    provider: string;
-    gseq: number;
-    oseq: number;
-  };
-};
-
-export async function loadSDL() {
   const sdl = SDL.fromString(rawSDL, "beta3");
   const ver = await sdl.manifestVersion();
-  return { rawSDL:rawSDL, manifestVersion:ver }
+  return { rawSDL: rawSDL, manifestVersion: ver }
 }
 
 export async function fetchBid(dseq: number, owner: string) {
@@ -139,9 +140,9 @@ async function queryLeaseStatus(lease: Lease, providerUri: string, certificate: 
 }
 
 export async function sendManifest(
-  sdl: SDL, 
-  lease: Lease, 
-  certificate: { cert: string; privateKey: string; publicKey: string }){
+  sdl: SDL,
+  lease: Lease,
+  certificate: { cert: string; privateKey: string; publicKey: string }) {
   if (lease.id === undefined) {
     throw new Error("Lease ID is undefined");
   }
@@ -222,9 +223,9 @@ export async function sendManifest(
     if (status && (proxy !== null || proxy !== undefined)) {
       console.log(`available at: ${proxy.host}:${proxy.externalPort}`);
       return {
-        "host":proxy.host,
-        "external_port":proxy.externalPort,
-        "link":`${proxy.host}:${proxy.externalPort}`
+        "host": proxy.host,
+        "external_port": proxy.externalPort,
+        "link": `${proxy.host}:${proxy.externalPort}`
       };
     }
 
